@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Student</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 20px;
+        }
+        video {
+            width: 400px;
+            height: 250px;
+            border: 2px solid black;
+            border-radius: 10px;
+        }
+        #status {
+            font-weight: bold;
+            margin-top: 10px;
+            color: green;
+        }
+        #error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Capture Student</h2>
+
+    <label for="name">Enter Student Name:</label>
+    <input type="text" id="name" required>
+    <button onclick="captureImage()">Capture Image</button>
+
+    <br><br>
+    <video id="video" autoplay></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <p id="status"></p>
+    <p id="error"></p>
+
+    <script>
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const context = canvas.getContext("2d");
+        const statusText = document.getElementById("status");
+        const errorText = document.getElementById("error");
+        
+        // Start webcam automatically when page loads
+        async function startWebcam() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                statusText.innerText = "🎥 Webcam is active.";
+                errorText.innerText = ""; // Clear error if any
+            } catch (err) {
+                console.error("Error accessing webcam:", err);
+                errorText.innerText = "❌ Error: Webcam not accessible.";
+            }
+        }
+
+        // Capture image and send to Flask server
+        async function captureImage() {
+            const studentName = document.getElementById("name").value.trim();
+            if (!studentName) {
+                alert("Enter student name first!");
+                return;
+            }
+
+            // Capture image from webcam
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL("image/jpeg");
+
+            try {
+                const response = await fetch("/capture", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: studentName, image: imageData })
+                });
+
+                const data = await response.json();
+                alert(data.message);
+                statusText.innerText = "✅ " + data.message;
+            } catch (error) {
+                console.error("Error capturing image:", error);
+                errorText.innerText = "❌ Failed to capture image.";
+            }
+        }
+
+        // Automatically start webcam on page load
+        window.onload = startWebcam;
+    </script>
+
+</body>
+</html>
