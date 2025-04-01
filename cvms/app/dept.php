@@ -6,7 +6,7 @@ if (!isset($_SESSION['admin_logged_in'])) {
     header("Location: ../index.html"); 
     exit();
 }
-
+$server_ip = $_SERVER['SERVER_ADDR'];
 include 'config.php';
 ?>
 
@@ -205,7 +205,7 @@ include 'config.php';
     <button class="btn" onclick="openPopup('students-popup')">Manage Students</button>
     <button class="btn" onclick="window.location.href='sub&time.php'">Periods Data</button>
     <button class="btn" onclick="openPopup('reports-popup')">Reports</button>
-    <button class="btn" onclick="opencam()">Capture</button>
+    <button class="btn" onclick="openCapture()">Capture</button>
     <button class="btn" onclick="openPopup('settings-popup')">Settings</button>
     <button class="logout-btn" onclick="window.location.href='logout.php'">Logout</button>
   </div>
@@ -289,13 +289,6 @@ include 'config.php';
     </form>
   </div>
   
-  <!-- Capture Popup -->
-<div id="capture-popup" class="popup">
-    <div class="popup-content">
-    <span class="close-btn" onclick="closecam()">&times;</span>
-        <iframe id="capture-frame" src="http://localhost:5001/register" width="100%" height="400px" frameborder="0" allow="camera;"></iframe>
-    </div>
-</div>
 <script>
 
     function openPopup(id) {
@@ -324,51 +317,12 @@ include 'config.php';
     function showAddStudentForm() {
         openPopup("add-student-popup");
     }
-    let stream = null; 
-    async function opencam() {
-    try {
-        // Request camera access
-        let stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const serverIP = "<?= $server_ip ?>";
 
-        console.log("Camera access granted.");
+        function openCapture() {
+            window.location.href = `https://${serverIP}/cvms/app/capture.php`;
+        }
 
-        // Open the popup after access is granted
-        openPopup("capture-popup");
-
-        // Optional: Attach the stream to a video element (if needed inside the iframe)
-        let videoElement = document.createElement("video");
-        videoElement.srcObject = stream;
-        videoElement.play();
-        
-    } catch (error) {
-        console.error("Camera access denied:", error);
-        alert("Please allow camera access to continue.");
-    }
-}
-function closecam() {
-    if (stream) {
-        // Stop all video tracks
-        stream.getTracks().forEach(track => {
-            track.stop();
-            track.enabled = false; // Disable track
-        });
-
-        console.log("Camera access stopped.");
-        stream = null;
-    }
-
-    // Try to revoke permission (Not possible directly, but best practice)
-    navigator.mediaDevices.getUserMedia({ video: true })
-        .then(mediaStream => {
-            mediaStream.getTracks().forEach(track => track.stop()); // Immediately stop new stream
-        })
-        .catch(error => {
-            console.log("Camera access already denied or revoked.");
-        });
-
-    // Close the popup
-    closePopup("capture-popup");
-}
 
 
 </script>

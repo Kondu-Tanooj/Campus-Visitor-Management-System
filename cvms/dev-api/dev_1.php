@@ -1,7 +1,5 @@
 <?php
 include 'config.php'; // Include database connection file
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 
 // Set timezone for both PHP and MySQL
 date_default_timezone_set('Asia/Kolkata');

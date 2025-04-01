@@ -5,7 +5,7 @@ session_start();
 $host = "localhost"; // Change if needed
 $dbname = "cvms";
 $username = "root";  // keep your user
-$password = "";      // Keep your passowrd
+$password = "Ktanooj@2004";      // Keep your passowrd
 
 // Create connection
 $conn = new mysqli($host, $username, $password, $dbname);
