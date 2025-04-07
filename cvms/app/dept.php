@@ -205,7 +205,7 @@ include 'config.php';
     <button class="btn" onclick="openPopup('students-popup')">Manage Students</button>
     <button class="btn" onclick="window.location.href='sub&time.php'">Periods Data</button>
     <button class="btn" onclick="openPopup('reports-popup')">Reports</button>
-    <button class="btn" onclick="openCapture()">Capture</button>
+    <button class="btn" onclick="window.location.href='capture.php'">Capture</button>
     <button class="btn" onclick="openPopup('settings-popup')">Settings</button>
     <button class="logout-btn" onclick="window.location.href='logout.php'">Logout</button>
   </div>

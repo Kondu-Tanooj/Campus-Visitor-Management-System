@@ -76,7 +76,7 @@ def face_recognize_p1():
 
 def send_to_php(name):
     """Send recognized name to PHP script via POST request."""
-    url = f"https://{server_ip}/cvms/cam/insert_capture.php"
+    url = f"http://{server_ip}/cvms/cam/insert_capture.php"
     data = {"regd_id": name}
 
     try:

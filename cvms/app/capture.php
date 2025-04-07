@@ -141,6 +141,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['image']) && !empty($_
             overflow: hidden;
             box-shadow: var(--box-shadow);
             background-color: #000;
+            min-height: 480px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         video {
@@ -265,6 +269,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['image']) && !empty($_
             margin-bottom: 1rem;
         }
         
+        .permission-prompt {
+            text-align: center;
+            padding: 1rem;
+            background-color: #fff3cd;
+            border-radius: var(--border-radius);
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        .permission-prompt button {
+            margin-top: 0.5rem;
+        }
+        
+        .video-placeholder {
+            color: white;
+            text-align: center;
+            padding: 2rem;
+        }
+        
         @media (max-width: 768px) {
             body {
                 padding: 15px;
@@ -282,6 +305,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['image']) && !empty($_
             button {
                 width: 100%;
                 max-width: 300px;
+            }
+            
+            .video-container {
+                min-height: 360px;
             }
         }
         
@@ -327,6 +354,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['image']) && !empty($_
     <div class="container">
         <h2>Student Image Capture System</h2>
         
+        <div class="permission-prompt" id="permissionPrompt">
+            <p>Camera access is required for this feature. Please allow camera permissions to continue.</p>
+            <button id="requestPermissionBtn">Allow Camera Access</button>
+        </div>
+        
         <div id="status">Tap "Start Camera" to begin capturing student images</div>
         
         <select id="cameraSelect" disabled>
@@ -335,6 +367,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['image']) && !empty($_
         
         <div class="video-container">
             <video id="videoElement" playsinline autoplay></video>
+            <div class="video-placeholder" id="videoPlaceholder">Camera feed will appear here</div>
         </div>
         
         <input type="text" id="student_name" placeholder="Enter Student Registration Number" required>
@@ -388,13 +421,70 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['image']) && !empty($_
         const statusDiv = document.getElementById('status');
         const studentNameInput = document.getElementById('student_name');
         const canvas = document.getElementById('canvas');
-        const capturedImage = document.getElementById('capturedImage');
         const videoContainer = document.querySelector('.video-container');
+        const videoPlaceholder = document.getElementById('videoPlaceholder');
+        const permissionPrompt = document.getElementById('permissionPrompt');
+        const requestPermissionBtn = document.getElementById('requestPermissionBtn');
         
         let stream = null;
         let isCameraActive = false;
         let cameras = [];
         let currentCameraIndex = 0;
+        
+        // Check camera permission state on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            checkCameraPermission();
+            startBtn.focus();
+        });
+        
+        // Check camera permission state
+        async function checkCameraPermission() {
+            try {
+                const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+                updatePermissionUI(permissionStatus.state);
+                
+                permissionStatus.onchange = () => {
+                    updatePermissionUI(permissionStatus.state);
+                };
+            } catch (err) {
+                console.log('Permission API not supported, using fallback');
+                // Fallback for browsers that don't support the Permissions API
+            }
+        }
+        
+        // Update UI based on permission state
+        function updatePermissionUI(state) {
+            if (state === 'granted') {
+                permissionPrompt.style.display = 'none';
+                startBtn.disabled = false;
+            } else if (state === 'prompt') {
+                permissionPrompt.style.display = 'block';
+                startBtn.disabled = false;
+            } else if (state === 'denied') {
+                permissionPrompt.style.display = 'block';
+                startBtn.disabled = true;
+                showStatus("Camera access is blocked. Please enable it in your browser settings.", "error");
+            }
+        }
+        
+        // Request camera permission
+        requestPermissionBtn.addEventListener('click', async () => {
+            try {
+                // Try to get camera access
+                const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                // Immediately stop the stream since we just wanted to check permission
+                tempStream.getTracks().forEach(track => track.stop());
+                
+                permissionPrompt.style.display = 'none';
+                startBtn.disabled = false;
+                showStatus("Permission granted. You can now start the camera.", "success");
+            } catch (err) {
+                showStatus(`Error: ${err.message}`, "error");
+                if (err.name === 'NotAllowedError') {
+                    showStatus("Camera access was denied. Please enable it in your browser settings.", "error");
+                }
+            }
+        });
         
         // Show status message
         function showStatus(message, type = '') {
@@ -408,19 +498,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['image']) && !empty($_
             setTimeout(() => {
                 videoContainer.classList.remove('flash');
             }, 500);
-        }
-        
-        // Show preview of captured image
-        function showPreview(imageDataUrl) {
-            capturedImage.src = imageDataUrl;
-            capturedImage.style.display = 'block';
-            capturedImage.classList.remove('preview-animation');
-            void capturedImage.offsetWidth; // Trigger reflow
-            capturedImage.classList.add('preview-animation');
-            
-            setTimeout(() => {
-                capturedImage.style.display = 'none';
-            }, 2000);
         }
         
         // Get available cameras
@@ -476,6 +553,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['image']) && !empty($_
                 video.srcObject = stream;
                 isCameraActive = true;
                 currentCameraIndex = cameraIndex;
+                
+                // Hide placeholder when video starts
+                videoPlaceholder.style.display = 'none';
+                video.style.display = 'block';
+                
                 showStatus("Camera is active. Position the student's face in the frame.", "success");
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
@@ -489,13 +571,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['image']) && !empty($_
                 
                 startBtn.innerHTML = '<span class="button-icon">📷</span> Camera Started';
                 studentNameInput.focus();
+                
+                // Hide permission prompt if it was shown
+                permissionPrompt.style.display = 'none';
             } catch (err) {
                 isCameraActive = false;
+                video.style.display = 'none';
+                videoPlaceholder.style.display = 'block';
+                
                 showStatus(`Error: ${err.message}`, "error");
                 startBtn.innerHTML = '<span class="button-icon">📷</span> Start Camera';
                 startBtn.disabled = false;
                 
-                if (cameras.length > 1) {
+                if (err.name === 'NotAllowedError') {
+                    permissionPrompt.style.display = 'block';
+                    showStatus("Camera access was denied. Please allow camera permissions.", "error");
+                } else if (cameras.length > 1) {
                     // Try the next camera if available
                     const nextIndex = (cameraIndex + 1) % cameras.length;
                     if (nextIndex !== cameraIndex) {
@@ -512,6 +603,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['image']) && !empty($_
                 stream.getTracks().forEach(track => track.stop());
                 video.srcObject = null;
                 isCameraActive = false;
+                
+                // Show placeholder when video stops
+                video.style.display = 'none';
+                videoPlaceholder.style.display = 'block';
+                
                 showStatus("Camera stopped. Tap 'Start Camera' to begin again.");
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
@@ -544,11 +640,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['image']) && !empty($_
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
             
             const imageDataUrl = canvas.toDataURL('image/jpg');
-            showPreview(imageDataUrl);
             
             // Visual feedback
             flashEffect();
-            showStatus("Saving captured image...");
+            showStatus("Saving captured image...", "success");
             
             // Save image via AJAX
             saveImage(imageDataUrl, studentNameInput.value.trim());
@@ -564,11 +659,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['image']) && !empty($_
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
                 showStatus(data.message, data.status);
+                // Clear the input field after successful save
+                if (data.status === 'success') {
+                    studentNameInput.value = '';
+                }
             })
             .catch(error => {
+                console.error('Error:', error);
                 showStatus("Error saving image: " + error.message, "error");
             });
         }
@@ -577,25 +682,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !empty($_POST['image']) && !empty($_
         startBtn.addEventListener('click', () => {
             getCameras().then(() => startCamera(0));
         });
+        
         stopBtn.addEventListener('click', stopCamera);
         captureBtn.addEventListener('click', captureImage);
         switchCameraBtn.addEventListener('click', switchCamera);
+        
         cameraSelect.addEventListener('change', (e) => {
             if (e.target.value) {
                 startCamera(parseInt(e.target.value));
             }
         });
         
-        // Auto-focus camera button when page loads
-        window.addEventListener('DOMContentLoaded', () => {
-            startBtn.focus();
-            
-            // Clear any existing stream when page reloads
-            window.addEventListener('beforeunload', () => {
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                }
-            });
+        // Allow pressing Enter in the student name field to capture image
+        studentNameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && isCameraActive) {
+                captureImage();
+            }
+        });
+        
+        // Clear any existing stream when page reloads
+        window.addEventListener('beforeunload', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
         });
     </script>
 </body>
